@@ -8,20 +8,26 @@ import asyncio
 async def main():
     docker = DockerCommandLineCodeExecutor(work_dir="~/temp")
 
-    code_executor = CodeExecutorAgent(
+    code_executor_agent = CodeExecutorAgent(
         name="CodeExecutor",
         code_executor=docker,
     )
 
-    code = """```python
-    print("Hello from autogen-coding-team!")
-    ```"""
+    # start docker container before using it
+    await docker.start()
 
-    res = await code_executor.on_messages(
+    code = """```
+python print('Hello world from coding agents team!')
+```"""
+
+    res = await code_executor_agent.on_messages(
         messages=[TextMessage(content=code, source="user")],
         cancellation_token=CancellationToken(),
     )
     print(res)
+
+    # stop docker container after use
+    await docker.stop()
 
 
 if __name__ == "__main__":
