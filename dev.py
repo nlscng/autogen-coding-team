@@ -16,8 +16,10 @@ async def main():
     # start docker container before using it
     await docker.start()
 
-    code = """```
-python print('Hello world from coding agents team!')
+    # format of the md code block is very strict,
+    # and there are no spaces between 'python' and 'print'
+    code = """```python
+print('Hello world from coding agents team!')
 ```"""
 
     res = await code_executor_agent.on_messages(
