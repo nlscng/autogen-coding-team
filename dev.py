@@ -3,18 +3,19 @@ from autogen_agentchat.messages import TextMessage
 from autogen_ext.code_executors.docker import DockerCommandLineCodeExecutor
 from autogen_core import CancellationToken
 import asyncio
-
+import os
+import dotenv
 
 async def main():
-    docker = DockerCommandLineCodeExecutor(work_dir="~/temp")
+    docker_executor = DockerCommandLineCodeExecutor(work_dir="~/temp")
 
     code_executor_agent = CodeExecutorAgent(
         name="CodeExecutor",
-        code_executor=docker,
+        code_executor=docker_executor,
     )
 
     # start docker container before using it
-    await docker.start()
+    await docker_executor.start()
 
     # format of the md code block is very strict,
     # and there are no spaces between 'python' and 'print'
@@ -29,7 +30,7 @@ print('Hello world from coding agents team!')
     print(res)
 
     # stop docker container after use
-    await docker.stop()
+    await docker_executor.stop()
 
 
 if __name__ == "__main__":
