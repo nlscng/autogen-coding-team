@@ -13,7 +13,9 @@ load_dotenv()
 api_key_name = "OPENAI_API_KEY"
 # print(f"Using OpenAI API key: {os.getenv(api_key_name)}")
 
-async def main():
+
+async def team_config():
+
     docker_executor = DockerCommandLineCodeExecutor(work_dir="~/temp")
 
     code_executor_agent = CodeExecutorAgent(
@@ -38,22 +40,24 @@ async def main():
             'and then write the code to solve the task. '
             'You should always write your code in a code block with python or shell script specified, '
             'and write one code block at a time, and then pass it to the code executor agent.'
-            'Once the code executor agent executes the code and you have the results, '
+            'Once the code executor agent executes the code successfully, and you have the results, '
             'you should validate and explain the result, and say exactly the word "TERMINATE"'
             'Never say the "TERMINATE" word before you have the results from the code executor agent.'
         )
     )
-    # start docker container before using it
-    await docker_executor.start()
 
     team_chat = RoundRobinGroupChat(
         participants=[code_developer_agent, code_executor_agent],
         termination_condition=TextMentionTermination(text="TERMINATE"),
         max_turns=10,
     )
+    return team_chat, docker_executor
 
-    # task = 'What is the 18th prime number?'
-    task = 'what is the sum of numbers from 1 to 100?'
+
+async def run(team_chat: RoundRobinGroupChat, docker_executor: DockerCommandLineCodeExecutor, task: str):
+    # start docker container before using it
+    await docker_executor.start()
+
     async for one_message in team_chat.run_stream(task=task):
         # TaskResult is return when agent run completes, not during the stream, so we handle the them separately
         if isinstance(one_message, TaskResult):
@@ -67,6 +71,16 @@ async def main():
     # stop docker container after use
     await docker_executor.stop()
 
+async def main():
+
+    # task = 'What is the 18th prime number?'
+    task = 'what is the sum of numbers from 1 to 100?'
+    task = (
+        'Toss a fair coin, from 10 times to 1000 times, with step of 10, plot the results, '
+        'and save the plot as "plot.png", and then display the plot.'
+    )
+    team_chat, docker_executor = await team_config()
+    await run(team_chat, docker_executor, task)
 
 if __name__ == "__main__":
     asyncio.run(main())
