@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 load_dotenv()
 api_key_name = "OPENAI_API_KEY"
 # print(f"Using OpenAI API key: {os.getenv(api_key_name)}")
-
+MAX_TURNS = 10
 
 async def team_config():
 
@@ -41,7 +41,10 @@ async def team_config():
             'You should always write your code in a code block with python or shell script specified, '
             'and write one code block at a time, and then pass it to the code executor agent.'
             'Once the code executor agent executes the code successfully, and you have the results, '
-            'you should validate and explain the result, and say exactly the word "TERMINATE"'
+            'you should validate and explain the result. If an image is generated, you should say exactly "GENERATED:<filename>"' \
+            'like "GENERATED:plot.png" '
+            'In the end, after code execution is done, and after image displaying is done if an image is '
+            'generated, say exactly the word "TERMINATE"'
             'Never say the "TERMINATE" word before you have the results from the code executor agent.'
         )
     )
@@ -49,7 +52,7 @@ async def team_config():
     team_chat = RoundRobinGroupChat(
         participants=[code_developer_agent, code_executor_agent],
         termination_condition=TextMentionTermination(text="TERMINATE"),
-        max_turns=10,
+        max_turns=MAX_TURNS,
     )
     return team_chat, docker_executor
 
@@ -61,12 +64,13 @@ async def run(team_chat: RoundRobinGroupChat, docker_executor: DockerCommandLine
     async for one_message in team_chat.run_stream(task=task):
         # TaskResult is return when agent run completes, not during the stream, so we handle the them separately
         if isinstance(one_message, TaskResult):
-            print(f"Stopping reason: {one_message.stop_reason}")
+            print(msg:=f"Stopping reason: {one_message.stop_reason}")
+            yield msg
         else:
-            print(f"{one_message.source}: {one_message.content}")
+            print(msg:=f"{one_message.source}: {one_message.content}")
+            yield msg
     
     print("Task completed.")
-
 
     # stop docker container after use
     await docker_executor.stop()
@@ -80,7 +84,8 @@ async def main():
         'and save the plot as "plot.png", and then display the plot.'
     )
     team_chat, docker_executor = await team_config()
-    await run(team_chat, docker_executor, task)
+    async for one_message in run(team_chat, docker_executor, task):
+        pass
 
 if __name__ == "__main__":
     asyncio.run(main())
